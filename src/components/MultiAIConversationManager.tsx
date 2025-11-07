@@ -122,16 +122,16 @@ const MultiAIConversationManager = () => {
     if (storedMemories) {
       const parsedMemories = JSON.parse(storedMemories);
       // Filter out expired memories for each AI
-      const filteredMemories = {};
+      const filteredMemories: Record<string, any[]> = {};
       Object.keys(parsedMemories).forEach(aiId => {
-        filteredMemories[aiId] = memoryConfig.maxMemoryAge > 0 
-          ? parsedMemories[aiId].filter(memory => {
+        filteredMemories[aiId] = memoryConfig.maxMemoryAge > 0
+          ? parsedMemories[aiId].filter((memory: any) => {
               const ageInDays = (Date.now() - new Date(memory.createdAt).getTime()) / (1000 * 60 * 60 * 24);
               return ageInDays <= memoryConfig.maxMemoryAge;
             })
           : parsedMemories[aiId];
       });
-      
+
       setAiMemories(filteredMemories);
     }
   };
