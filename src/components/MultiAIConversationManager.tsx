@@ -63,7 +63,7 @@ const MultiAIConversationManager = () => {
   const [showSettings, setShowSettings] = useState(false);
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [memoryStats, setMemoryStats] = useState<Record<string, { total: number; storageUsed: number }>>({});
-  const [autoProgressConversation, setAutoProgressConversation] = useState(false);
+  const [autoProgressConversation] = useState(false);
   const [maxAutoRounds, setMaxAutoRounds] = useState(5);
   const [currentAutoRound, setCurrentAutoRound] = useState(0);
   const [discussionTopic, setDiscussionTopic] = useState('');
@@ -387,7 +387,6 @@ const MultiAIConversationManager = () => {
       for (let round = 0; round < maxAutoRounds; round++) {
         const currentAI = activeConversation.participants[currentAIIndex];
         const nextAIIndex = (currentAIIndex + 1) % activeConversation.participants.length;
-        const nextAI = activeConversation.participants[nextAIIndex];
 
         // Get the last message for context
         const lastMessage = currentMessages[currentMessages.length - 1];
