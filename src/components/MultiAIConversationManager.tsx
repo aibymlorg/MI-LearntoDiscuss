@@ -122,9 +122,11 @@ const MultiAIConversationManager = () => {
     if (storedMemories) {
       const parsedMemories = JSON.parse(storedMemories);
       // Filter out expired memories for each AI
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const filteredMemories: Record<string, any[]> = {};
       Object.keys(parsedMemories).forEach(aiId => {
         filteredMemories[aiId] = memoryConfig.maxMemoryAge > 0
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           ? parsedMemories[aiId].filter((memory: any) => {
               const ageInDays = (Date.now() - new Date(memory.createdAt).getTime()) / (1000 * 60 * 60 * 24);
               return ageInDays <= memoryConfig.maxMemoryAge;
