@@ -2,19 +2,43 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Upload, Download, Send, Plus, Trash2, Settings, MessageSquare, Copy, Check, Brain, HardDrive, Users, Bot, UserCheck } from 'lucide-react';
 
+interface Message {
+  role: string;
+  content: string;
+  timestamp: string;
+  sender: string;
+  aiId?: string;
+  provider?: string;
+  usedMemories?: number;
+  memoryEnhanced?: boolean;
+  isError?: boolean;
+}
+
+interface Conversation {
+  id: string;
+  title: string;
+  type: string;
+  participants: string[];
+  messages: Message[];
+  createdAt: string;
+  metadata?: Record<string, unknown>;
+}
+
 const MultiAIConversationManager = () => {
-  const [conversations, setConversations] = useState([]);
-  const [activeConversation, setActiveConversation] = useState(null);
+  const [conversations, setConversations] = useState<Conversation[]>([]);
+  const [activeConversation, setActiveConversation] = useState<Conversation | null>(null);
   const [currentProvider, setCurrentProvider] = useState('openai');
   const [message, setMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [conversationType, setConversationType] = useState('single'); // 'single', 'bilateral', 'multilateral'
-  const [selectedAIs, setSelectedAIs] = useState(['openai', 'anthropic']);
-  const [aiMemories, setAiMemories] = useState({}); // Separate memories for each AI
-  const [relevantMemories, setRelevantMemories] = useState({});
+  const [selectedAIs, setSelectedAIs] = useState<string[]>(['openai', 'anthropic']);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const [aiMemories, setAiMemories] = useState<Record<string, any[]>>({}); // Separate memories for each AI
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const [relevantMemories, setRelevantMemories] = useState<Record<string, any[]>>({});
   const [showMemories, setShowMemories] = useState(false);
   const [selectedMemoryAI, setSelectedMemoryAI] = useState('openai');
-  const [apiKeys, setApiKeys] = useState({
+  const [apiKeys, setApiKeys] = useState<Record<string, string>>({
     openai: '',
     anthropic: '',
     ollama: 'http://localhost:11434',
@@ -32,15 +56,15 @@ const MultiAIConversationManager = () => {
     crossAIMemorySharing: false // New: whether AIs can access each other's memories
   });
   const [showSettings, setShowSettings] = useState(false);
-  const [copiedId, setCopiedId] = useState(null);
-  const [memoryStats, setMemoryStats] = useState({});
+  const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [memoryStats, setMemoryStats] = useState<Record<string, { total: number; storageUsed: number }>>({});
   const [autoProgressConversation, setAutoProgressConversation] = useState(false);
   const [maxAutoRounds, setMaxAutoRounds] = useState(5);
   const [currentAutoRound, setCurrentAutoRound] = useState(0);
-  const fileInputRef = useRef(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Enhanced providers with more AI options
-  const providers = {
+  const providers: Record<string, { name: string; color: string; icon: string }> = {
     openai: { name: 'OpenAI GPT', color: 'bg-green-500', icon: '🤖' },
     anthropic: { name: 'Claude (Anthropic)', color: 'bg-orange-500', icon: '🧠' },
     ollama: { name: 'Ollama (Local)', color: 'bg-blue-500', icon: '🏠' },
@@ -143,7 +167,7 @@ const MultiAIConversationManager = () => {
     return Date.now().toString() + Math.random().toString(36).substr(2, 9);
   };
 
-  const storeMemoryForAI = (aiId, content, metadata = {}) => {
+  const storeMemoryForAI = (aiId: string, content: string, metadata: Record<string, unknown> = {}) => {
     if (!memoryConfig.enabled || !content?.trim()) return null;
 
     const memory = {
@@ -174,7 +198,7 @@ const MultiAIConversationManager = () => {
     return memory;
   };
 
-  const searchMemoriesForAI = (aiId, query, limit = memoryConfig.maxRelevantMemories) => {
+  const searchMemoriesForAI = (aiId: string, query: string, limit = memoryConfig.maxRelevantMemories) => {
     if (!memoryConfig.enabled || !query?.trim() || !aiMemories[aiId]) return [];
 
     const queryKeywords = extractKeywords(query.toLowerCase());
@@ -203,7 +227,7 @@ const MultiAIConversationManager = () => {
     return relevantMemories;
   };
 
-  const deleteMemoryForAI = (aiId, memoryId) => {
+  const deleteMemoryForAI = (aiId: string, memoryId: string) => {
     const updatedAIMemories = {
       ...aiMemories,
       [aiId]: (aiMemories[aiId] || []).filter(memory => memory.id !== memoryId)
@@ -213,7 +237,7 @@ const MultiAIConversationManager = () => {
   };
 
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const clearAllMemoriesForAI = (aiId) => {
+  const clearAllMemoriesForAI = (aiId: string) => {
     const updatedAIMemories = {
       ...aiMemories,
       [aiId]: []
@@ -223,7 +247,7 @@ const MultiAIConversationManager = () => {
   };
 
   // 🔍 SEARCH AND RELEVANCE FUNCTIONS (same as original)
-  const extractKeywords = (text) => {
+  const extractKeywords = (text: string) => {
     const stopWords = new Set(['the', 'a', 'an', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for', 'of', 'with', 'by', 'is', 'are', 'was', 'were', 'be', 'been', 'have', 'has', 'had', 'do', 'does', 'did', 'will', 'would', 'could', 'should', 'may', 'might', 'can', 'this', 'that', 'these', 'those', 'i', 'you', 'he', 'she', 'it', 'we', 'they', 'me', 'him', 'her', 'us', 'them']);
     
     return text
@@ -234,7 +258,8 @@ const MultiAIConversationManager = () => {
       .slice(0, 20);
   };
 
-  const calculateRelevance = (queryKeywords, memory) => {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const calculateRelevance = (queryKeywords: string[], memory: any) => {
     const memoryKeywords = memory.keywords || extractKeywords(memory.content);
     
     const exactMatches = queryKeywords.filter(keyword => 
@@ -242,7 +267,7 @@ const MultiAIConversationManager = () => {
     ).length;
     
     const partialMatches = queryKeywords.reduce((count, queryWord) => {
-      return count + memoryKeywords.filter(memoryWord => 
+      return count + memoryKeywords.filter((memoryWord: string) =>
         memoryWord.includes(queryWord) || queryWord.includes(memoryWord)
       ).length;
     }, 0);
@@ -257,10 +282,11 @@ const MultiAIConversationManager = () => {
     return Math.min(totalScore / maxPossibleScore, 1.0);
   };
 
-  const getRelevantMemoriesForAIs = (userMessage, aiIds) => {
+  const getRelevantMemoriesForAIs = (userMessage: string, aiIds: string[]) => {
     if (!memoryConfig.enabled) return {};
 
-    const relevantByAI = {};
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const relevantByAI: Record<string, any[]> = {};
     aiIds.forEach(aiId => {
       const relevant = searchMemoriesForAI(aiId, userMessage);
       relevantByAI[aiId] = relevant;
@@ -272,7 +298,7 @@ const MultiAIConversationManager = () => {
 
   // 📊 STATISTICS AND UTILITIES
   const updateMemoryStats = () => {
-    const stats = {};
+    const stats: Record<string, { total: number; storageUsed: number }> = {};
     Object.keys(aiMemories).forEach(aiId => {
       const memories = aiMemories[aiId] || [];
       const storageUsed = new Blob([JSON.stringify(memories)]).size;
@@ -305,7 +331,7 @@ const MultiAIConversationManager = () => {
     setCurrentAutoRound(0);
   };
 
-  const deleteConversation = (convId) => {
+  const deleteConversation = (convId: string) => {
     setConversations(conversations.filter(c => c.id !== convId));
     if (activeConversation?.id === convId) {
       setActiveConversation(conversations[0] || null);
@@ -313,7 +339,7 @@ const MultiAIConversationManager = () => {
     }
   };
 
-  const updateConversationTitle = (convId, newTitle) => {
+  const updateConversationTitle = (convId: string, newTitle: string) => {
     setConversations(conversations.map(c => 
       c.id === convId ? { ...c, title: newTitle } : c
     ));
@@ -407,11 +433,12 @@ const MultiAIConversationManager = () => {
 
       console.log('✅ Multi-AI message flow completed');
       
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('❌ Error in multi-AI message flow:', error);
-      const errorMessage = { 
-        role: 'assistant', 
-        content: `Error: Failed to get responses. ${error.message}`, 
+      const errorContent = error instanceof Error ? error.message : 'An unknown error occurred';
+      const errorMessage = {
+        role: 'assistant',
+        content: `Error: Failed to get responses. ${errorContent}`,
         timestamp: new Date().toISOString(),
         sender: 'system',
         isError: true
@@ -427,7 +454,8 @@ const MultiAIConversationManager = () => {
 
   // Replace the getAIResponseWithMemory function with this implementation
 
-  const getAIResponseWithMemory = async (aiId, messages, contextMessage, relevantMemories) => {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const getAIResponseWithMemory = async (aiId: string, messages: Message[], contextMessage: string, relevantMemories: any[]) => {
     if (!apiKeys[aiId] || !apiKeys[aiId].trim()) {
       throw new Error(`API key not configured for ${aiId}`);
     }
@@ -471,14 +499,15 @@ const MultiAIConversationManager = () => {
         usedMemories: relevantMemories.length,
         memoryEnhanced: hasMemoryContext
       };
-    } catch (error) {
+    } catch (error: unknown) {
       console.error(`Error calling ${aiId}:`, error);
-      throw new Error(`Failed to get response from ${aiId}: ${error.message}`);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+      throw new Error(`Failed to get response from ${aiId}: ${errorMessage}`);
     }
   };
 
   // OpenAI API Implementation
-  const callOpenAI = async (messages, contextMessage) => {
+  const callOpenAI = async (messages: Message[], contextMessage: string) => {
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
       headers: {
@@ -505,7 +534,7 @@ const MultiAIConversationManager = () => {
   };
 
   // Anthropic API Implementation
-  const callAnthropic = async (messages, contextMessage) => {
+  const callAnthropic = async (messages: Message[], contextMessage: string) => {
     const response = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       headers: {
@@ -535,7 +564,7 @@ const MultiAIConversationManager = () => {
   };
 
   // Ollama API Implementation (Local)
-  const callOllama = async (messages, contextMessage) => {
+  const callOllama = async (messages: Message[], contextMessage: string) => {
     const response = await fetch(`${apiKeys.ollama}/api/chat`, {
       method: 'POST',
       headers: {
@@ -560,7 +589,7 @@ const MultiAIConversationManager = () => {
   };
 
   // Google Gemini API Implementation
-  const callGemini = async (messages, contextMessage) => {
+  const callGemini = async (messages: Message[], contextMessage: string) => {
     const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=${apiKeys.gemini}`, {
       method: 'POST',
       headers: {
@@ -588,7 +617,7 @@ const MultiAIConversationManager = () => {
   };
 
   // Claude API (if different from Anthropic)
-  const callClaudeAPI = async (messages, contextMessage) => {
+  const callClaudeAPI = async (messages: Message[], contextMessage: string) => {
     // This would be the same as callAnthropic unless you're using a different endpoint
     return callAnthropic(messages, contextMessage);
   };
@@ -622,19 +651,23 @@ const MultiAIConversationManager = () => {
     URL.revokeObjectURL(url);
   };
 
-  const importAIMemories = (event) => {
-    const file = event.target.files[0];
+  const importAIMemories = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
     if (!file) return;
 
     const reader = new FileReader();
     reader.onload = (e) => {
       try {
-        const importData = JSON.parse(e.target.result);
+        const result = e.target?.result;
+        if (typeof result !== 'string') return;
+        const importData = JSON.parse(result);
         
         if (importData.format === 'multi-ai-memory-export-v1') {
-          const importedMemories = {};
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const importedMemories: Record<string, any[]> = {};
           Object.keys(importData.aiMemories).forEach(aiId => {
-            importedMemories[aiId] = importData.aiMemories[aiId].map(memory => ({
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            importedMemories[aiId] = importData.aiMemories[aiId].map((memory: any) => ({
               ...memory,
               id: generateMemoryId(),
               importedAt: new Date().toISOString()
@@ -660,7 +693,7 @@ const MultiAIConversationManager = () => {
     event.target.value = '';
   };
 
-  const exportConversation = (conv) => {
+  const exportConversation = (conv: Conversation) => {
     const exportData = {
       ...conv,
       exportedAt: new Date().toISOString(),
@@ -676,7 +709,7 @@ const MultiAIConversationManager = () => {
     URL.revokeObjectURL(url);
   };
 
-  const copyConversationAsText = (conv) => {
+  const copyConversationAsText = (conv: Conversation) => {
     const text = conv.messages.map(msg => 
       `${msg.sender?.toUpperCase() || msg.role.toUpperCase()}: ${msg.content}`
     ).join('\n\n');
@@ -690,7 +723,7 @@ const MultiAIConversationManager = () => {
   return (
     <div className="flex h-screen bg-gray-800">
       {/* Sidebar */}
-      <div className="w-80 bg-white border-r border-gray-200 flex flex-col">
+      <div className="w-80 bg-gray-200 border-r border-gray-300 flex flex-col">
         <div className="p-4 border-b border-gray-200">
           <div className="flex items-center justify-between mb-4">
             <h1 className="text-xl font-bold">Managing Multi-Intelligence</h1>
@@ -795,7 +828,7 @@ const MultiAIConversationManager = () => {
               New Chat
             </button>
             <button
-              onClick={() => fileInputRef.current.click()}
+              onClick={() => fileInputRef.current?.click()}
               className="p-2 bg-gray-500 text-white rounded hover:bg-gray-600"
               title="Import Conversation"
             >
@@ -935,7 +968,7 @@ const MultiAIConversationManager = () => {
                   Export AI Memories
                 </button>
                 <button
-                  onClick={() => document.getElementById('ai-memory-import').click()}
+                  onClick={() => document.getElementById('ai-memory-import')?.click()}
                   className="flex-1 text-xs bg-green-500 text-white px-2 py-1 rounded hover:bg-green-600"
                   disabled={!memoryConfig.enabled}
                 >
@@ -1141,7 +1174,7 @@ const MultiAIConversationManager = () => {
                         <span className="text-xs font-medium opacity-70">
                           {providers[msg.sender]?.name || msg.sender}
                         </span>
-                        {msg.usedMemories > 0 && (
+                        {msg.usedMemories && msg.usedMemories > 0 && (
                           <span className="flex items-center gap-1 text-xs opacity-70">
                             <Brain className="w-3 h-3" />
                             {msg.usedMemories}
