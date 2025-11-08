@@ -75,7 +75,22 @@ const MultiAIConversationManager = () => {
     messages: Message[];
   } | null>(null);
   const [showDialogueSummary, setShowDialogueSummary] = useState(false);
+  const [selectedOllamaModel, setSelectedOllamaModel] = useState('llama3.3:latest');
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Available Ollama models (from user's installation)
+  const ollamaModels = [
+    { name: 'llama3.2-vision:latest', size: '7.9 GB', category: 'Small/Fast' },
+    { name: 'mistral-small3.1:latest', size: '15 GB', category: 'Medium' },
+    { name: 'mistral-small3.1:24b', size: '15 GB', category: 'Medium' },
+    { name: 'gemma3:27b', size: '17 GB', category: 'Medium' },
+    { name: 'gemma3:27b-it-q4_K_M', size: '17 GB', category: 'Medium' },
+    { name: 'openthinker:32b-q8_0', size: '34 GB', category: 'Large' },
+    { name: 'llama3.3:latest', size: '42 GB', category: 'Large' },
+    { name: 'deepseek-r1:70b', size: '42 GB', category: 'Large' },
+    { name: 'qwen2.5:72b', size: '47 GB', category: 'Very Large' },
+    { name: 'llama3.2-vision:90b', size: '54 GB', category: 'Very Large' },
+  ];
 
   // Enhanced providers with more AI options
   const providers: Record<string, { name: string; color: string; icon: string }> = {
@@ -93,6 +108,7 @@ const MultiAIConversationManager = () => {
     loadApiKeys();
     loadMemoryConfig();
     loadAIMemories();
+    loadOllamaModel();
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -177,6 +193,22 @@ const MultiAIConversationManager = () => {
       setAiMemories(filteredMemories);
     }
   };
+
+  const loadOllamaModel = () => {
+    const storedModel = localStorage.getItem('multi-ai-ollama-model');
+    if (storedModel) {
+      setSelectedOllamaModel(storedModel);
+    } else {
+      // Use env variable or default
+      const envModel = process.env.NEXT_PUBLIC_OLLAMA_MODEL || 'llama3.3:latest';
+      setSelectedOllamaModel(envModel);
+    }
+  };
+
+  // Save selected Ollama model to localStorage
+  useEffect(() => {
+    localStorage.setItem('multi-ai-ollama-model', selectedOllamaModel);
+  }, [selectedOllamaModel]);
 
   // 🧠 AI-SPECIFIC MEMORY MANAGEMENT FUNCTIONS
   const generateMemoryId = () => {
@@ -655,8 +687,6 @@ const MultiAIConversationManager = () => {
 
   // Unified API call through Next.js API route (fixes CORS issues)
   const callAIProvider = async (provider: string, messages: Message[], contextMessage: string) => {
-    const ollamaModel = process.env.NEXT_PUBLIC_OLLAMA_MODEL || 'llama3.3:latest';
-
     const response = await fetch('/api/ai', {
       method: 'POST',
       headers: {
@@ -668,7 +698,7 @@ const MultiAIConversationManager = () => {
         apiKey: apiKeys[provider],
         contextMessage: contextMessage,
         ollamaUrl: provider.includes('ollama') ? apiKeys[provider === 'ollamaCloud' ? 'ollamaCloud' : 'ollama'] : undefined,
-        ollamaModel: provider.includes('ollama') ? ollamaModel : undefined
+        ollamaModel: provider.includes('ollama') ? selectedOllamaModel : undefined
       })
     });
 
@@ -901,6 +931,54 @@ const MultiAIConversationManager = () => {
               </select>
             </div>
           )}
+
+          {/* Ollama Model Selection */}
+          {(conversationType === 'single' && currentProvider === 'ollama') ||
+           (conversationType !== 'single' && selectedAIs.includes('ollama')) ? (
+            <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded">
+              <div className="flex items-center gap-2 mb-2">
+                <HardDrive className="w-4 h-4 text-blue-600" />
+                <label className="text-sm font-semibold text-blue-700">🏠 Ollama Model</label>
+              </div>
+              <select
+                value={selectedOllamaModel}
+                onChange={(e) => setSelectedOllamaModel(e.target.value)}
+                className="w-full p-2 text-sm border border-blue-300 rounded bg-white"
+              >
+                <optgroup label="Small/Fast (< 10 GB)">
+                  {ollamaModels.filter(m => m.category === 'Small/Fast').map(model => (
+                    <option key={model.name} value={model.name}>
+                      {model.name} ({model.size})
+                    </option>
+                  ))}
+                </optgroup>
+                <optgroup label="Medium (10-20 GB)">
+                  {ollamaModels.filter(m => m.category === 'Medium').map(model => (
+                    <option key={model.name} value={model.name}>
+                      {model.name} ({model.size})
+                    </option>
+                  ))}
+                </optgroup>
+                <optgroup label="Large (20-45 GB)">
+                  {ollamaModels.filter(m => m.category === 'Large').map(model => (
+                    <option key={model.name} value={model.name}>
+                      {model.name} ({model.size})
+                    </option>
+                  ))}
+                </optgroup>
+                <optgroup label="Very Large (45+ GB)">
+                  {ollamaModels.filter(m => m.category === 'Very Large').map(model => (
+                    <option key={model.name} value={model.name}>
+                      {model.name} ({model.size})
+                    </option>
+                  ))}
+                </optgroup>
+              </select>
+              <p className="text-xs text-blue-600 mt-2">
+                Currently using: <span className="font-semibold">{selectedOllamaModel}</span>
+              </p>
+            </div>
+          ) : null}
 
           <div className="flex gap-2 mb-4">
             <button
