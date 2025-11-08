@@ -656,13 +656,14 @@ const MultiAIConversationManager = () => {
 
   // Ollama API Implementation (Local)
   const callOllama = async (messages: Message[], contextMessage: string) => {
+    const ollamaModel = process.env.NEXT_PUBLIC_OLLAMA_MODEL || 'llama3.3:latest';
     const response = await fetch(`${apiKeys.ollama}/api/chat`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'llama2', // or whatever model you have installed
+        model: ollamaModel,
         messages: [
           ...messages.slice(-10),
           { role: 'user', content: contextMessage }
@@ -682,6 +683,7 @@ const MultiAIConversationManager = () => {
   // Ollama Cloud API Implementation
   const callOllamaCloud = async (messages: Message[], contextMessage: string) => {
     const ollamaApiKey = process.env.NEXT_PUBLIC_OLLAMA_API_KEY || '';
+    const ollamaModel = process.env.NEXT_PUBLIC_OLLAMA_MODEL || 'llama3.3:latest';
     const response = await fetch(`${apiKeys.ollamaCloud}/api/chat`, {
       method: 'POST',
       headers: {
@@ -689,7 +691,7 @@ const MultiAIConversationManager = () => {
         'Authorization': `Bearer ${ollamaApiKey}`
       },
       body: JSON.stringify({
-        model: 'llama2', // or your preferred Ollama Cloud model
+        model: ollamaModel,
         messages: [
           ...messages.slice(-10),
           { role: 'user', content: contextMessage }
