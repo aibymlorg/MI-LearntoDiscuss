@@ -69,6 +69,12 @@ const MultiAIConversationManager = () => {
   const [currentAutoRound, setCurrentAutoRound] = useState(0);
   const [discussionTopic, setDiscussionTopic] = useState('');
   const [isAIDialogueMode, setIsAIDialogueMode] = useState(false);
+  const [dialogueSummary, setDialogueSummary] = useState<{
+    totalDuration: number;
+    aiStats: Record<string, { count: number; totalTime: number; avgTime: number; minTime: number; maxTime: number }>;
+    messages: Message[];
+  } | null>(null);
+  const [showDialogueSummary, setShowDialogueSummary] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Enhanced providers with more AI options
@@ -402,6 +408,7 @@ const MultiAIConversationManager = () => {
         const aiMessage: Message = {
           ...response,
           metadata: {
+            ...response.metadata,
             respondingTo: lastMessage.sender,
             round: round + 1
           }
@@ -422,6 +429,43 @@ const MultiAIConversationManager = () => {
         await new Promise(resolve => setTimeout(resolve, 1000));
       }
 
+      // Calculate dialogue summary statistics
+      const aiMessages = currentMessages.filter(m => m.sender !== 'moderator' && m.sender !== 'user');
+      const aiStats: Record<string, { count: number; totalTime: number; avgTime: number; minTime: number; maxTime: number }> = {};
+
+      aiMessages.forEach(msg => {
+        const responseTime = msg.metadata?.responseTime || 0;
+        const aiId = msg.sender;
+
+        if (!aiStats[aiId]) {
+          aiStats[aiId] = {
+            count: 0,
+            totalTime: 0,
+            avgTime: 0,
+            minTime: Infinity,
+            maxTime: 0
+          };
+        }
+
+        aiStats[aiId].count += 1;
+        aiStats[aiId].totalTime += responseTime;
+        aiStats[aiId].minTime = Math.min(aiStats[aiId].minTime, responseTime);
+        aiStats[aiId].maxTime = Math.max(aiStats[aiId].maxTime, responseTime);
+      });
+
+      // Calculate averages
+      Object.keys(aiStats).forEach(aiId => {
+        aiStats[aiId].avgTime = Math.round(aiStats[aiId].totalTime / aiStats[aiId].count);
+      });
+
+      const totalDuration = aiMessages.reduce((sum, msg) => sum + (msg.metadata?.responseTime || 0), 0);
+
+      setDialogueSummary({
+        totalDuration,
+        aiStats,
+        messages: currentMessages
+      });
+      setShowDialogueSummary(true);
       setDiscussionTopic('');
       console.log('✅ AI dialogue completed');
 
@@ -554,9 +598,12 @@ const MultiAIConversationManager = () => {
       `[RELEVANT CONTEXT FROM PREVIOUS CONVERSATIONS]: ${relevantMemories.map(m => m.content).join(' | ')}\n\n[USER MESSAGE]: ${contextMessage}` :
       contextMessage;
 
+    // Start timing
+    const startTime = Date.now();
+
     try {
       let response;
-      
+
       switch (aiId) {
         case 'openai':
           response = await callOpenAI(messages, contextWithMemories);
@@ -580,6 +627,10 @@ const MultiAIConversationManager = () => {
           throw new Error(`Unsupported AI provider: ${aiId}`);
       }
 
+      // Calculate response time
+      const endTime = Date.now();
+      const responseTime = endTime - startTime;
+
       return {
         role: 'assistant',
         content: response,
@@ -588,7 +639,12 @@ const MultiAIConversationManager = () => {
         aiId: aiId,
         provider: aiId,
         usedMemories: relevantMemories.length,
-        memoryEnhanced: hasMemoryContext
+        memoryEnhanced: hasMemoryContext,
+        metadata: {
+          responseTime: responseTime,
+          startTime: startTime,
+          endTime: endTime
+        }
       };
     } catch (error: unknown) {
       console.error(`Error calling ${aiId}:`, error);
@@ -1350,6 +1406,11 @@ const MultiAIConversationManager = () => {
                             {msg.usedMemories}
                           </span>
                         )}
+                        {msg.metadata?.responseTime && (
+                          <span className="flex items-center gap-1 text-xs text-blue-600 font-medium">
+                            ⏱️ {(msg.metadata.responseTime / 1000).toFixed(2)}s
+                          </span>
+                        )}
                       </div>
                     )}
                     <div className="whitespace-pre-wrap">{msg.content}</div>
@@ -1430,6 +1491,128 @@ const MultiAIConversationManager = () => {
           </div>
         )}
       </div>
+
+      {/* Dialogue Summary Modal */}
+      {showDialogueSummary && dialogueSummary && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 max-w-3xl w-full max-h-[80vh] overflow-y-auto">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-2xl font-bold flex items-center gap-2">
+                <Brain className="w-6 h-6 text-blue-600" />
+                AI Dialogue Summary
+              </h2>
+              <button
+                onClick={() => setShowDialogueSummary(false)}
+                className="text-gray-500 hover:text-gray-700"
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Overall Stats */}
+            <div className="mb-6 p-4 bg-blue-50 rounded-lg">
+              <h3 className="font-semibold mb-2 text-blue-900">Overall Performance</h3>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <p className="text-sm text-gray-600">Total Dialogue Duration</p>
+                  <p className="text-2xl font-bold text-blue-600">
+                    {(dialogueSummary.totalDuration / 1000).toFixed(2)}s
+                  </p>
+                </div>
+                <div>
+                  <p className="text-sm text-gray-600">Total Responses</p>
+                  <p className="text-2xl font-bold text-blue-600">
+                    {dialogueSummary.messages.filter(m => m.sender !== 'moderator' && m.sender !== 'user').length}
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* Per-AI Stats */}
+            <div className="mb-6">
+              <h3 className="font-semibold mb-3 text-gray-900">AI Performance Metrics</h3>
+              <div className="space-y-3">
+                {Object.entries(dialogueSummary.aiStats)
+                  .sort((a, b) => a[1].avgTime - b[1].avgTime) // Sort by fastest avg time
+                  .map(([aiId, stats]) => (
+                    <div key={aiId} className="p-4 border border-gray-200 rounded-lg hover:border-blue-300 transition-colors">
+                      <div className="flex items-center justify-between mb-2">
+                        <div className="flex items-center gap-2">
+                          <span className={`px-3 py-1 rounded-full text-white text-sm font-medium ${providers[aiId]?.color || 'bg-gray-500'}`}>
+                            {providers[aiId]?.icon} {providers[aiId]?.name || aiId}
+                          </span>
+                          <span className="text-xs text-gray-500">
+                            ({stats.count} responses)
+                          </span>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-xs text-gray-500">Avg Response Time</p>
+                          <p className="text-lg font-bold text-green-600">{(stats.avgTime / 1000).toFixed(2)}s</p>
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-3 gap-2 mt-3 text-xs">
+                        <div className="bg-gray-50 p-2 rounded">
+                          <p className="text-gray-500">Fastest</p>
+                          <p className="font-semibold text-green-600">{(stats.minTime / 1000).toFixed(2)}s</p>
+                        </div>
+                        <div className="bg-gray-50 p-2 rounded">
+                          <p className="text-gray-500">Slowest</p>
+                          <p className="font-semibold text-orange-600">{(stats.maxTime / 1000).toFixed(2)}s</p>
+                        </div>
+                        <div className="bg-gray-50 p-2 rounded">
+                          <p className="text-gray-500">Total Time</p>
+                          <p className="font-semibold text-blue-600">{(stats.totalTime / 1000).toFixed(2)}s</p>
+                        </div>
+                      </div>
+
+                      {/* Visual bar showing efficiency */}
+                      <div className="mt-2">
+                        <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
+                          <div
+                            className="h-full bg-gradient-to-r from-green-400 to-blue-500"
+                            style={{
+                              width: `${Math.min(100, (stats.avgTime / Math.max(...Object.values(dialogueSummary.aiStats).map(s => s.avgTime))) * 100)}%`
+                            }}
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+              </div>
+            </div>
+
+            {/* Efficiency Ranking */}
+            <div className="p-4 bg-green-50 rounded-lg">
+              <h3 className="font-semibold mb-2 text-green-900">🏆 Efficiency Ranking</h3>
+              <ol className="space-y-1">
+                {Object.entries(dialogueSummary.aiStats)
+                  .sort((a, b) => a[1].avgTime - b[1].avgTime)
+                  .map(([aiId, stats], index) => (
+                    <li key={aiId} className="flex items-center gap-2 text-sm">
+                      <span className="font-bold text-green-700">#{index + 1}</span>
+                      <span className={`px-2 py-0.5 rounded text-white text-xs ${providers[aiId]?.color || 'bg-gray-500'}`}>
+                        {providers[aiId]?.icon} {providers[aiId]?.name}
+                      </span>
+                      <span className="text-gray-600">
+                        - {(stats.avgTime / 1000).toFixed(2)}s avg
+                      </span>
+                    </li>
+                  ))}
+              </ol>
+            </div>
+
+            <div className="mt-6 flex justify-end">
+              <button
+                onClick={() => setShowDialogueSummary(false)}
+                className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Hidden file inputs */}
       <input
