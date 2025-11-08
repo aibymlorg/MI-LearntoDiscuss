@@ -653,149 +653,57 @@ const MultiAIConversationManager = () => {
     }
   };
 
-  // OpenAI API Implementation
+  // Unified API call through Next.js API route (fixes CORS issues)
+  const callAIProvider = async (provider: string, messages: Message[], contextMessage: string) => {
+    const ollamaModel = process.env.NEXT_PUBLIC_OLLAMA_MODEL || 'llama3.3:latest';
+
+    const response = await fetch('/api/ai', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        provider: provider,
+        messages: messages.slice(-10),
+        apiKey: apiKeys[provider],
+        contextMessage: contextMessage,
+        ollamaUrl: provider.includes('ollama') ? apiKeys[provider === 'ollamaCloud' ? 'ollamaCloud' : 'ollama'] : undefined,
+        ollamaModel: provider.includes('ollama') ? ollamaModel : undefined
+      })
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.error || `API error: ${response.statusText}`);
+    }
+
+    const data = await response.json();
+    return data.content;
+  };
+
+  // Individual provider wrappers for backwards compatibility
   const callOpenAI = async (messages: Message[], contextMessage: string) => {
-    const response = await fetch('https://api.openai.com/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${apiKeys.openai}`
-      },
-      body: JSON.stringify({
-        model: 'gpt-4', // or 'gpt-3.5-turbo'
-        messages: [
-          ...messages.slice(-10), // Keep last 10 messages for context
-          { role: 'user', content: contextMessage }
-        ],
-        max_tokens: 1000,
-        temperature: 0.7
-      })
-    });
-
-    if (!response.ok) {
-      throw new Error(`OpenAI API error: ${response.statusText}`);
-    }
-
-    const data = await response.json();
-    return data.choices[0].message.content;
+    return callAIProvider('openai', messages, contextMessage);
   };
 
-  // Anthropic API Implementation
   const callAnthropic = async (messages: Message[], contextMessage: string) => {
-    const response = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-api-key': apiKeys.anthropic,
-        'anthropic-version': '2023-06-01'
-      },
-      body: JSON.stringify({
-        model: 'claude-3-sonnet-20240229',
-        max_tokens: 1000,
-        messages: [
-          ...messages.slice(-10).map(msg => ({
-            role: msg.role === 'assistant' ? 'assistant' : 'user',
-            content: msg.content
-          })),
-          { role: 'user', content: contextMessage }
-        ]
-      })
-    });
-
-    if (!response.ok) {
-      throw new Error(`Anthropic API error: ${response.statusText}`);
-    }
-
-    const data = await response.json();
-    return data.content[0].text;
+    return callAIProvider('anthropic', messages, contextMessage);
   };
 
-  // Ollama API Implementation (Local)
   const callOllama = async (messages: Message[], contextMessage: string) => {
-    const ollamaModel = process.env.NEXT_PUBLIC_OLLAMA_MODEL || 'llama3.3:latest';
-    const response = await fetch(`${apiKeys.ollama}/api/chat`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: ollamaModel,
-        messages: [
-          ...messages.slice(-10),
-          { role: 'user', content: contextMessage }
-        ],
-        stream: false
-      })
-    });
-
-    if (!response.ok) {
-      throw new Error(`Ollama API error: ${response.statusText}`);
-    }
-
-    const data = await response.json();
-    return data.message.content;
+    return callAIProvider('ollama', messages, contextMessage);
   };
 
-  // Ollama Cloud API Implementation
   const callOllamaCloud = async (messages: Message[], contextMessage: string) => {
-    const ollamaApiKey = process.env.NEXT_PUBLIC_OLLAMA_API_KEY || '';
-    const ollamaModel = process.env.NEXT_PUBLIC_OLLAMA_MODEL || 'llama3.3:latest';
-    const response = await fetch(`${apiKeys.ollamaCloud}/api/chat`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${ollamaApiKey}`
-      },
-      body: JSON.stringify({
-        model: ollamaModel,
-        messages: [
-          ...messages.slice(-10),
-          { role: 'user', content: contextMessage }
-        ],
-        stream: false
-      })
-    });
-
-    if (!response.ok) {
-      throw new Error(`Ollama Cloud API error: ${response.statusText}`);
-    }
-
-    const data = await response.json();
-    return data.message.content;
+    return callAIProvider('ollamaCloud', messages, contextMessage);
   };
 
-  // Google Gemini API Implementation
   const callGemini = async (messages: Message[], contextMessage: string) => {
-    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=${apiKeys.gemini}`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        contents: [{
-          parts: [{
-            text: contextMessage
-          }]
-        }],
-        generationConfig: {
-          temperature: 0.7,
-          maxOutputTokens: 1000
-        }
-      })
-    });
-
-    if (!response.ok) {
-      throw new Error(`Gemini API error: ${response.statusText}`);
-    }
-
-    const data = await response.json();
-    return data.candidates[0].content.parts[0].text;
+    return callAIProvider('gemini', messages, contextMessage);
   };
 
-  // Claude API (if different from Anthropic)
   const callClaudeAPI = async (messages: Message[], contextMessage: string) => {
-    // This would be the same as callAnthropic unless you're using a different endpoint
-    return callAnthropic(messages, contextMessage);
+    return callAIProvider('claude', messages, contextMessage);
   };
 
   const getAutoProgressPrompt = () => {
@@ -1333,6 +1241,33 @@ const MultiAIConversationManager = () => {
               </div>
             </div>
 
+            {/* Message Input - Moved to Top */}
+            <div className="p-4 border-b border-gray-200 bg-white">
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  value={message}
+                  onChange={(e) => setMessage(e.target.value)}
+                  onKeyPress={(e) => e.key === 'Enter' && sendMessage()}
+                  placeholder={`Message ${activeConversation.participants.length > 1 ? `${activeConversation.participants.length} AIs` : providers[activeConversation.participants[0]]?.name}...`}
+                  className="flex-1 p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  disabled={isLoading}
+                />
+                <button
+                  onClick={sendMessage}
+                  disabled={isLoading || !message.trim()}
+                  className="px-4 py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <Send className="w-5 h-5" />
+                </button>
+              </div>
+              {autoProgressConversation && currentAutoRound < maxAutoRounds && (
+                <div className="mt-2 text-xs text-purple-600 text-center">
+                  Auto-progression active • Round {currentAutoRound}/{maxAutoRounds}
+                </div>
+              )}
+            </div>
+
             {/* Relevant Memories Display */}
             {Object.keys(relevantMemories).length > 0 && (
               <div className="p-3 bg-blue-50 border-b border-blue-200">
@@ -1431,33 +1366,6 @@ const MultiAIConversationManager = () => {
                       }
                     </div>
                   </div>
-                </div>
-              )}
-            </div>
-
-            {/* Message Input */}
-            <div className="p-4 border-t border-gray-200 bg-white">
-              <div className="flex gap-2">
-                <input
-                  type="text"
-                  value={message}
-                  onChange={(e) => setMessage(e.target.value)}
-                  onKeyPress={(e) => e.key === 'Enter' && sendMessage()}
-                  placeholder={`Message ${activeConversation.participants.length > 1 ? `${activeConversation.participants.length} AIs` : providers[activeConversation.participants[0]]?.name}...`}
-                  className="flex-1 p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  disabled={isLoading}
-                />
-                <button
-                  onClick={sendMessage}
-                  disabled={isLoading || !message.trim()}
-                  className="px-4 py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  <Send className="w-5 h-5" />
-                </button>
-              </div>
-              {autoProgressConversation && currentAutoRound < maxAutoRounds && (
-                <div className="mt-2 text-xs text-purple-600 text-center">
-                  Auto-progression active • Round {currentAutoRound}/{maxAutoRounds}
                 </div>
               )}
             </div>
