@@ -1408,7 +1408,7 @@ const MultiAIConversationManager = () => {
                         )}
                         {msg.metadata?.responseTime && (
                           <span className="flex items-center gap-1 text-xs text-blue-600 font-medium">
-                            ⏱️ {(msg.metadata.responseTime / 1000).toFixed(2)}s
+                            ⏱️ {((msg.metadata.responseTime as number) / 1000).toFixed(2)}s
                           </span>
                         )}
                       </div>
