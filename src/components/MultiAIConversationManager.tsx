@@ -119,10 +119,7 @@ const MultiAIConversationManager = () => {
     }
   }, [conversations]);
 
-  // Save API keys to localStorage
-  useEffect(() => {
-    localStorage.setItem('multi-ai-api-keys', JSON.stringify(apiKeys));
-  }, [apiKeys]);
+  // API keys are loaded from environment variables only - no localStorage saving needed
 
   // Save memory config to localStorage
   useEffect(() => {
@@ -149,8 +146,8 @@ const MultiAIConversationManager = () => {
   };
 
   const loadApiKeys = () => {
-    const storedKeys = localStorage.getItem('multi-ai-api-keys');
-    const defaultKeys = {
+    // Load API keys from environment variables only
+    const envKeys = {
       openai: process.env.NEXT_PUBLIC_OPENAI_API_KEY || '',
       anthropic: process.env.NEXT_PUBLIC_ANTHROPIC_API_KEY || '',
       ollama: 'http://localhost:11434',
@@ -159,11 +156,7 @@ const MultiAIConversationManager = () => {
       claude: process.env.NEXT_PUBLIC_ANTHROPIC_API_KEY || ''
     };
 
-    if (storedKeys) {
-      setApiKeys({ ...defaultKeys, ...JSON.parse(storedKeys) });
-    } else {
-      setApiKeys(defaultKeys);
-    }
+    setApiKeys(envKeys);
   };
 
   const loadMemoryConfig = () => {
@@ -837,8 +830,8 @@ const MultiAIConversationManager = () => {
   return (
     <div className="flex h-screen bg-gray-800">
       {/* Sidebar */}
-      <div className="w-80 bg-gray-200 border-r border-gray-300 flex flex-col">
-        <div className="p-4 border-b border-gray-200">
+      <div className="w-80 bg-gray-700 border-r border-gray-600 flex flex-col">
+        <div className="p-4 border-b border-gray-600 text-white">
           <div className="flex items-center justify-between mb-4">
             <h1 className="text-xl font-bold">Managing Multi-Intelligence</h1>
             <div className="flex gap-2">
@@ -861,25 +854,25 @@ const MultiAIConversationManager = () => {
           
           {/* Conversation Type Selection */}
           <div className="mb-4">
-            <label className="block text-sm font-medium mb-2">Conversation Type</label>
+            <label className="block text-sm font-medium mb-2 text-white">Conversation Type</label>
             <div className="flex gap-2 mb-2">
               <button
                 onClick={() => setConversationType('single')}
-                className={`flex-1 p-2 text-sm rounded ${conversationType === 'single' ? 'bg-blue-500 text-white' : 'bg-gray-200 hover:bg-gray-300'}`}
+                className={`flex-1 p-2 text-sm rounded ${conversationType === 'single' ? 'bg-blue-500 text-white' : 'bg-gray-600 text-gray-200 hover:bg-gray-500'}`}
               >
                 <Bot className="w-4 h-4 mx-auto mb-1" />
                 Single AI
               </button>
               <button
                 onClick={() => setConversationType('bilateral')}
-                className={`flex-1 p-2 text-sm rounded ${conversationType === 'bilateral' ? 'bg-green-500 text-white' : 'bg-gray-200 hover:bg-gray-300'}`}
+                className={`flex-1 p-2 text-sm rounded ${conversationType === 'bilateral' ? 'bg-green-500 text-white' : 'bg-gray-600 text-gray-200 hover:bg-gray-500'}`}
               >
                 <Users className="w-4 h-4 mx-auto mb-1" />
                 Bilateral
               </button>
               <button
                 onClick={() => setConversationType('multilateral')}
-                className={`flex-1 p-2 text-sm rounded ${conversationType === 'multilateral' ? 'bg-purple-500 text-white' : 'bg-gray-200 hover:bg-gray-300'}`}
+                className={`flex-1 p-2 text-sm rounded ${conversationType === 'multilateral' ? 'bg-purple-500 text-white' : 'bg-gray-600 text-gray-200 hover:bg-gray-500'}`}
               >
                 <UserCheck className="w-4 h-4 mx-auto mb-1" />
                 Multi-lateral
@@ -890,12 +883,12 @@ const MultiAIConversationManager = () => {
           {/* AI Selection for Multi-AI conversations */}
           {conversationType !== 'single' && (
             <div className="mb-4">
-              <label className="block text-sm font-medium mb-2">
+              <label className="block text-sm font-medium mb-2 text-white">
                 Select AIs ({conversationType === 'bilateral' ? '2 required' : '2+ required'})
               </label>
               <div className="space-y-2">
                 {Object.entries(providers).map(([key, provider]) => (
-                  <label key={key} className="flex items-center gap-2">
+                  <label key={key} className="flex items-center gap-2 text-gray-200">
                     <input
                       type="checkbox"
                       checked={selectedAIs.includes(key)}
@@ -919,11 +912,11 @@ const MultiAIConversationManager = () => {
           {/* Single AI Selection */}
           {conversationType === 'single' && (
             <div className="mb-4">
-              <label className="block text-sm font-medium mb-2">Select AI</label>
+              <label className="block text-sm font-medium mb-2 text-white">Select AI</label>
               <select
                 value={currentProvider}
                 onChange={(e) => setCurrentProvider(e.target.value)}
-                className="w-full p-2 border border-gray-300 rounded"
+                className="w-full p-2 border border-gray-500 rounded bg-gray-600 text-white"
               >
                 {Object.entries(providers).map(([key, provider]) => (
                   <option key={key} value={key}>{provider.name}</option>
@@ -1075,21 +1068,8 @@ const MultiAIConversationManager = () => {
           <div className="p-4 border-b border-gray-200 bg-gray-50 max-h-96 overflow-y-auto">
             <h3 className="font-semibold mb-3">API Configuration</h3>
             <div className="space-y-3">
-              {Object.entries(providers).map(([key, provider]) => (
-                <div key={key}>
-                  <label className="block text-sm font-medium mb-1">{provider.name} API Key</label>
-                  <input
-                    type="password"
-                    value={apiKeys[key]}
-                    onChange={(e) => setApiKeys({...apiKeys, [key]: e.target.value})}
-                    className="w-full p-2 border border-gray-300 rounded text-sm"
-                    placeholder={key === 'ollama' ? 'http://localhost:11434' : 'API Key...'}
-                  />
-                </div>
-              ))}
-              
-              <hr className="my-3" />
-              
+              {/* API keys are now loaded from environment variables (.env.local) */}
+
               <h4 className="font-semibold text-sm text-blue-600">Multi-AI Memory Settings</h4>
               <div>
                 <label className="block text-sm font-medium mb-1">User ID</label>
