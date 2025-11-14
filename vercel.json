@@ -1,0 +1,15 @@
+{
+  "buildCommand": "npm run build",
+  "devCommand": "npm run dev",
+  "installCommand": "npm install",
+  "framework": "nextjs",
+  "regions": ["iad1"],
+  "env": {
+    "NEXT_PUBLIC_OPENAI_API_KEY": "@openai-api-key",
+    "NEXT_PUBLIC_ANTHROPIC_API_KEY": "@anthropic-api-key",
+    "NEXT_PUBLIC_GEMINI_API_KEY": "@gemini-api-key",
+    "NEXT_PUBLIC_OLLAMA_API_KEY": "@ollama-api-key",
+    "NEXT_PUBLIC_OLLAMA_URL": "@ollama-url",
+    "NEXT_PUBLIC_OLLAMA_MODEL": "@ollama-model"
+  }
+}

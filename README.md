@@ -193,6 +193,111 @@ npm start
 npm run lint
 ```
 
+## Deployment
+
+### Deploy to Vercel (Recommended)
+
+This app is optimized for deployment on [Vercel](https://vercel.com), the platform created by the makers of Next.js.
+
+#### Quick Deploy
+
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/aibymlorg/MI-LearntoDiscuss)
+
+#### Manual Deployment with Vercel CLI
+
+1. **Install Vercel CLI** (if not already installed):
+   ```bash
+   npm install -g vercel
+   ```
+
+2. **Login to Vercel**:
+   ```bash
+   vercel login
+   ```
+
+3. **Deploy**:
+   ```bash
+   # Preview deployment
+   vercel
+
+   # Production deployment
+   vercel --prod
+   ```
+
+4. **Configure Environment Variables**:
+
+   During first deployment, Vercel will prompt you to set up your project. Add environment variables:
+
+   **Option A: Via Vercel CLI**
+   ```bash
+   vercel env add NEXT_PUBLIC_OPENAI_API_KEY production
+   vercel env add NEXT_PUBLIC_ANTHROPIC_API_KEY production
+   vercel env add NEXT_PUBLIC_GEMINI_API_KEY production
+   vercel env add NEXT_PUBLIC_OLLAMA_API_KEY production
+   vercel env add NEXT_PUBLIC_OLLAMA_URL production
+   vercel env add NEXT_PUBLIC_OLLAMA_MODEL production
+   ```
+
+   When prompted, enter the corresponding values from your `.env.local` file.
+
+   **Option B: Via Vercel Dashboard**
+   1. Go to your project at `https://vercel.com/your-username/mi-learntodicuss`
+   2. Click **Settings** → **Environment Variables**
+   3. Add each variable from `.env.example`:
+      - `NEXT_PUBLIC_OPENAI_API_KEY`
+      - `NEXT_PUBLIC_ANTHROPIC_API_KEY`
+      - `NEXT_PUBLIC_GEMINI_API_KEY`
+      - `NEXT_PUBLIC_OLLAMA_API_KEY`
+      - `NEXT_PUBLIC_OLLAMA_URL` (use `https://api.ollama.ai`)
+      - `NEXT_PUBLIC_OLLAMA_MODEL` (use `llama3.3:latest`)
+   4. Save and redeploy
+
+5. **Redeploy after adding variables**:
+   ```bash
+   vercel --prod
+   ```
+
+#### Important Notes for Production
+
+**Ollama Local Won't Work**:
+- The "Ollama (Local)" provider connects to `localhost:11434`
+- This only works on your local machine, not on Vercel's servers
+- **Solution**: Only use "Ollama Cloud" in production
+- Consider hiding the local option in production builds
+
+**Automatic Deployments**:
+- Once connected to GitHub, Vercel auto-deploys on every push to main
+- Feature branches get preview deployments automatically
+- View deployments at `https://vercel.com/your-username/mi-learntodicuss`
+
+**Environment Variables Best Practices**:
+- Set variables for all environments: Production, Preview, Development
+- Never commit `.env.local` to git
+- Rotate API keys regularly for security
+- Monitor usage on each provider's dashboard
+
+#### Alternative Deployment Options
+
+**Netlify**:
+```bash
+npm install -g netlify-cli
+netlify login
+netlify deploy --prod
+```
+
+**Railway**:
+```bash
+npm install -g @railway/cli
+railway login
+railway up
+```
+
+**Docker**:
+```bash
+docker build -t multi-ai-chat .
+docker run -p 3000:3000 --env-file .env.local multi-ai-chat
+```
+
 ## Key Implementation Details
 
 ### API Key Loading (Frontend)
