@@ -193,6 +193,68 @@ npm start
 npm run lint
 ```
 
+## CI/CD Pipeline
+
+This project includes a complete **automated CI/CD pipeline** integrating **Claude Code**, **GitHub Actions**, and **Vercel**.
+
+### 🚀 What Happens Automatically
+
+When you push code (with Claude's help):
+
+1. **Code Quality Checks** - Automatically runs on every push and PR:
+   - ✅ ESLint checks for code style
+   - ✅ TypeScript type checking
+   - ✅ Build verification
+   - ✅ Security audit of dependencies
+
+2. **Preview Deployments** - Automatic on every Pull Request:
+   - ✅ Creates a unique preview URL for testing
+   - ✅ Bot comments the URL directly on your PR
+   - ✅ Updates automatically with new commits
+
+3. **Production Deployments** - Automatic on merge to main:
+   - ✅ Deploys to Vercel production
+   - ✅ Runs all quality checks first
+   - ✅ Zero manual deployment steps
+
+### 📊 GitHub Actions Workflows
+
+This repository includes 3 automated workflows:
+
+| Workflow | Trigger | Purpose |
+|----------|---------|---------|
+| **CI - Code Quality** | Push to main/develop, PRs | Linting, type checking, build verification |
+| **Deploy to Vercel** | Push to main | Production deployment |
+| **Preview Deployment** | Pull Requests | Preview deployments with PR comments |
+
+### 🔧 Setup CI/CD
+
+Complete setup instructions: [`.github/CICD_SETUP.md`](.github/CICD_SETUP.md)
+
+**Quick setup:**
+
+1. Link GitHub repo to Vercel
+2. Get Vercel token and IDs
+3. Add GitHub Secrets:
+   - `VERCEL_TOKEN`
+   - `VERCEL_ORG_ID`
+   - `VERCEL_PROJECT_ID`
+4. Push code and watch it deploy automatically! 🎉
+
+### 🎯 The Full Integration
+
+```
+Claude Code → GitHub → GitHub Actions → Vercel → Live App
+```
+
+- **Claude helps** you write features
+- **Git** versions your code
+- **GitHub Actions** tests everything automatically
+- **Vercel** deploys if tests pass
+- **You** enjoy automated DevOps! ☕
+
+See the complete guide: [CI/CD Setup Documentation](.github/CICD_SETUP.md)
+
 ## Deployment
 
 ### Deploy to Vercel (Recommended)
