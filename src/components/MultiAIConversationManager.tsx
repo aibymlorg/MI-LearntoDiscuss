@@ -147,13 +147,32 @@ const MultiAIConversationManager = () => {
 
   const loadApiKeys = () => {
     // Load API keys from environment variables only
+    // Following the pattern: Keep real OpenAI credentials separate from Ollama Cloud
+    // Each provider is instantiated with its own base URL and key - no conflicts!
+    //
+    // IMPORTANT: You can use BOTH OpenAI and Ollama Cloud in the same app!
+    // - OpenAI uses NEXT_PUBLIC_OPENAI_API_KEY and connects to api.openai.com
+    // - Ollama Cloud uses NEXT_PUBLIC_OLLAMA_API_KEY and connects to api.ollama.ai
+    // - The backend API route (route.ts) overrides the endpoint per provider
+    // - No global environment variable conflicts because each provider is explicit
     const envKeys = {
+      // Real OpenAI API - uses api.openai.com endpoint (hardcoded in route.ts)
       openai: process.env.NEXT_PUBLIC_OPENAI_API_KEY || '',
+
+      // Anthropic/Claude - uses api.anthropic.com endpoint (hardcoded in route.ts)
       anthropic: process.env.NEXT_PUBLIC_ANTHROPIC_API_KEY || '',
+      claude: process.env.NEXT_PUBLIC_ANTHROPIC_API_KEY || '',
+
+      // Ollama Local - uses localhost:11434 URL, no API key needed
+      // Note: This is stored as a URL for backwards compatibility with ollamaUrl param
       ollama: 'http://localhost:11434',
-      ollamaCloud: process.env.NEXT_PUBLIC_OLLAMA_URL || 'https://api.ollama.ai',
-      gemini: process.env.NEXT_PUBLIC_GEMINI_API_KEY || '',
-      claude: process.env.NEXT_PUBLIC_ANTHROPIC_API_KEY || ''
+
+      // Ollama Cloud - API key only (URL is stored separately below)
+      // This coexists with OpenAI because each provider overrides its endpoint in code
+      ollamaCloud: process.env.NEXT_PUBLIC_OLLAMA_API_KEY || '',
+
+      // Google Gemini - uses generativelanguage.googleapis.com endpoint
+      gemini: process.env.NEXT_PUBLIC_GEMINI_API_KEY || ''
     };
 
     setApiKeys(envKeys);
@@ -680,6 +699,13 @@ const MultiAIConversationManager = () => {
 
   // Unified API call through Next.js API route (fixes CORS issues)
   const callAIProvider = async (provider: string, messages: Message[], contextMessage: string) => {
+    // Determine the correct URL for Ollama providers
+    // - Ollama Local: hardcoded to http://localhost:11434 (stored in apiKeys for backwards compat)
+    // - Ollama Cloud: from NEXT_PUBLIC_OLLAMA_URL environment variable
+    const ollamaUrl = provider === 'ollamaCloud'
+      ? (process.env.NEXT_PUBLIC_OLLAMA_URL || 'https://api.ollama.ai')
+      : (provider === 'ollama' ? 'http://localhost:11434' : undefined);
+
     const response = await fetch('/api/ai', {
       method: 'POST',
       headers: {
@@ -690,7 +716,7 @@ const MultiAIConversationManager = () => {
         messages: messages.slice(-10),
         apiKey: apiKeys[provider],
         contextMessage: contextMessage,
-        ollamaUrl: provider.includes('ollama') ? apiKeys[provider === 'ollamaCloud' ? 'ollamaCloud' : 'ollama'] : undefined,
+        ollamaUrl: ollamaUrl,
         ollamaModel: provider.includes('ollama') ? selectedOllamaModel : undefined
       })
     });
